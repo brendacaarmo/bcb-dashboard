@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Dashboard — Indicadores BCB</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📈</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #F7F7F5;
+    --surface: #FFFFFF;
+    --surface-2: #F1F1EE;
+    --border: #E4E4DF;
+    --text: #17181C;
+    --text-muted: #62636B;
+    --accent: #5B5FEF;
+    --accent-2: #17C3B2;
+    --accent-3: #FF8552;
+    --radius: 18px;
+    --font-display: 'Space Grotesk', sans-serif;
+    --font-body: 'Plus Jakarta Sans', sans-serif;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 32px 24px 64px; }
+
+  header { margin-bottom: 28px; }
+  .eyebrow { color: var(--accent-3); font-weight: 700; font-size: 13px; margin: 0 0 8px; }
+  h1 { font-family: var(--font-display); font-size: clamp(24px, 4vw, 32px); font-weight: 700; margin: 0 0 8px; }
+  .subtitle { color: var(--text-muted); font-size: 15px; margin: 0; }
+
+  .status-bar {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; color: var(--text-muted);
+    margin: 16px 0 28px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
+    padding: 8px 16px; width: fit-content;
+  }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-2); }
+  .status-dot.demo { background: var(--accent-3); }
+
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 28px; }
+  .kpi-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px 24px; }
+  .kpi-label { font-size: 13px; color: var(--text-muted); font-weight: 600; margin-bottom: 8px; }
+  .kpi-value { font-family: var(--font-display); font-size: 30px; font-weight: 700; }
+  .kpi-value.dolar { color: var(--accent); }
+  .kpi-value.selic { color: var(--accent-2); }
+  .kpi-value.ipca { color: var(--accent-3); }
+  .kpi-date { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+  .chart-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
+  @media (min-width: 860px) { .chart-grid { grid-template-columns: 1.4fr 1fr; } }
+
+  .chart-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 24px; display: flex; flex-direction: column;
+  }
+  .chart-card h2 { font-family: var(--font-display); font-size: 16px; font-weight: 600; margin: 0 0 4px; }
+  .chart-card .chart-sub { font-size: 13px; color: var(--text-muted); margin: 0 0 18px; }
+  .chart-canvas-wrap { position: relative; height: 280px; }
+
+  .filters { display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }
+  .filter-btn {
+    border: 1px solid var(--border); background: var(--surface-2); color: var(--text-muted);
+    font-family: var(--font-body); font-size: 13px; font-weight: 600;
+    padding: 7px 14px; border-radius: 999px; cursor: pointer; transition: all .15s ease;
+  }
+  .filter-btn.is-active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .filter-btn:hover:not(.is-active) { border-color: var(--accent); color: var(--accent); }
+
+  footer { margin-top: 40px; font-size: 12.5px; color: var(--text-muted); text-align: center; }
+  footer a { color: var(--accent); text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Dashboard</p>
+    <h1>Indicadores Financeiros — Banco Central</h1>
+    <p class="subtitle">Dólar, Selic e IPCA, alimentados pelo pipeline automatizado (GitHub Actions + Supabase).</p>
+  </header>
+
+  <div class="status-bar">
+    <span class="status-dot demo" id="statusDot"></span>
+    <span id="statusText">Modo demonstração — dados de exemplo (ainda não conectado ao Supabase)</span>
+  </div>
+
+  <div class="kpi-grid" id="kpiGrid">
+    <div class="kpi-card">
+      <div class="kpi-label">Dólar (venda)</div>
+      <div class="kpi-value dolar" id="kpiDolar">—</div>
+      <div class="kpi-date" id="kpiDolarDate">—</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Selic (meta)</div>
+      <div class="kpi-value selic" id="kpiSelic">—</div>
+      <div class="kpi-date" id="kpiSelicDate">—</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">IPCA (variação mensal)</div>
+      <div class="kpi-value ipca" id="kpiIpca">—</div>
+      <div class="kpi-date" id="kpiIpcaDate">—</div>
+    </div>
+  </div>
+
+  <div class="chart-grid">
+    <div class="chart-card">
+      <h2>Cotação do Dólar</h2>
+      <p class="chart-sub">Últimos registros do câmbio comercial (venda)</p>
+      <div class="filters">
+        <button class="filter-btn is-active" data-range="30">30 dias</button>
+        <button class="filter-btn" data-range="90">90 dias</button>
+        <button class="filter-btn" data-range="all">Tudo</button>
+      </div>
+      <div class="chart-canvas-wrap"><canvas id="chartDolar"></canvas></div>
+    </div>
+
+    <div class="chart-card">
+      <h2>Selic ao longo do tempo</h2>
+      <p class="chart-sub">Taxa meta definida pelo Copom</p>
+      <div class="chart-canvas-wrap"><canvas id="chartSelic"></canvas></div>
+    </div>
+  </div>
+
+  <div class="chart-grid" style="margin-top:20px;">
+    <div class="chart-card">
+      <h2>IPCA mensal</h2>
+      <p class="chart-sub">Variação percentual mês a mês</p>
+      <div class="chart-canvas-wrap"><canvas id="chartIpca"></canvas></div>
+    </div>
+  </div>
+
+  <footer>
+    Dados: API SGS do Banco Central • Pipeline: <a href="https://github.com/brendacaarmo/bcb-financial-pipeline" target="_blank" rel="noopener">GitHub</a>
+  </footer>
+</div>
+
+<script>
+/* ============================================================
+   CONFIGURAÇÃO — troque pelos valores reais do seu Supabase
+   (Project Settings → API → Project URL / anon public key)
+   ============================================================ */
+const SUPABASE_URL = "https://naxbcdwelyhbcnwvaade.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5heGJjZHdlbHloYmNud3ZhYWRlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAzNjM4MDUsImV4cCI6MjEwNTkzOTgwNX0.cR79KwWl857Az8Y6KqE8AZncIouUVzimCavciDB-1aM";
+
+/* ============================================================
+   Dados de demonstração (usados só se SUPABASE_URL estiver vazio)
+   ============================================================ */
+function generateDemoData() {
+  const today = new Date();
+  const dolar = [], selic = [], ipca = [];
+  let dolarVal = 5.10, selicVal = 14.25;
+
+  for (let i = 89; i >= 0; i--) {
+    const d = new Date(today); d.setDate(d.getDate() - i);
+    dolarVal += (Math.random() - 0.5) * 0.06;
+    dolar.push({ reference_date: d.toISOString().slice(0, 10), value: +dolarVal.toFixed(4) });
+  }
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(today); d.setMonth(d.getMonth() - i);
+    if (Math.random() > 0.7) selicVal -= 0.25;
+    selic.push({ reference_date: d.toISOString().slice(0, 10), value: +selicVal.toFixed(2) });
+  }
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(today); d.setMonth(d.getMonth() - i);
+    ipca.push({ reference_date: d.toISOString().slice(0, 10), value: +((Math.random() - 0.3) * 0.6).toFixed(2) });
+  }
+  return { dolar, selic, ipca };
+}
+
+/* ============================================================
+   Busca de dados: Supabase (se configurado) ou demo
+   ============================================================ */
+async function fetchSeries(seriesName) {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null; // sinaliza "usar demo"
+
+  const url = `${SUPABASE_URL}/rest/v1/indicadores?series_name=eq.${seriesName}&select=reference_date,value&order=reference_date.asc`;
+  const res = await fetch(url, {
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`
+    }
+  });
+  if (!res.ok) throw new Error(`Erro ${res.status} ao buscar ${seriesName}`);
+  return res.json();
+}
+
+async function loadAllData() {
+  const isConfigured = SUPABASE_URL && SUPABASE_ANON_KEY;
+  const statusDot = document.getElementById("statusDot");
+  const statusText = document.getElementById("statusText");
+
+  if (!isConfigured) {
+    statusDot.classList.add("demo");
+    statusText.textContent = "Modo demonstração — dados de exemplo (ainda não conectado ao Supabase)";
+    return generateDemoData();
+  }
+
+  try {
+    const [dolar, selic, ipca] = await Promise.all([
+      fetchSeries("dolar"),
+      fetchSeries("selic"),
+      fetchSeries("ipca")
+    ]);
+    statusDot.classList.remove("demo");
+    statusText.textContent = "Conectado ao Supabase — dados reais do pipeline";
+    return { dolar, selic, ipca };
+  } catch (err) {
+    statusDot.classList.add("demo");
+    statusText.textContent = "Erro ao conectar ao Supabase — exibindo dados de exemplo";
+    console.error(err);
+    return generateDemoData();
+  }
+}
+
+/* ============================================================
+   Helpers de formatação
+   ============================================================ */
+function formatDate(iso) {
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
+function lastPoint(series) {
+  return series && series.length ? series[series.length - 1] : null;
+}
+
+/* ============================================================
+   Renderização dos KPIs
+   ============================================================ */
+function renderKpis(data) {
+  const d = lastPoint(data.dolar);
+  const s = lastPoint(data.selic);
+  const i = lastPoint(data.ipca);
+
+  if (d) {
+    document.getElementById("kpiDolar").textContent = `R$ ${d.value.toFixed(4)}`;
+    document.getElementById("kpiDolarDate").textContent = formatDate(d.reference_date);
+  }
+  if (s) {
+    document.getElementById("kpiSelic").textContent = `${s.value.toFixed(2)}%`;
+    document.getElementById("kpiSelicDate").textContent = formatDate(s.reference_date);
+  }
+  if (i) {
+    document.getElementById("kpiIpca").textContent = `${i.value.toFixed(2)}%`;
+    document.getElementById("kpiIpcaDate").textContent = formatDate(i.reference_date);
+  }
+}
+
+/* ============================================================
+   Gráficos (Chart.js)
+   ============================================================ */
+let dolarChart, selicChart, ipcaChart;
+let fullDolarData = [];
+
+function sliceRange(series, days) {
+  if (days === "all") return series;
+  return series.slice(-days);
+}
+
+function buildLineChart(canvasId, labels, values, color) {
+  const ctx = document.getElementById(canvasId).getContext("2d");
+  return new Chart(ctx, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [{
+        data: values,
+        borderColor: color,
+        backgroundColor: color + "22",
+        borderWidth: 2,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        tension: 0.25,
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { maxTicksLimit: 6, color: "#62636B", font: { size: 11 } } },
+        y: { grid: { color: "#E4E4DF" }, ticks: { color: "#62636B", font: { size: 11 } } }
+      }
+    }
+  });
+}
+
+function buildBarChart(canvasId, labels, values, color) {
+  const ctx = document.getElementById(canvasId).getContext("2d");
+  return new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [{
+        data: values,
+        backgroundColor: values.map(v => (v < 0 ? "#FF855299" : color + "cc")),
+        borderRadius: 6,
+        maxBarThickness: 36
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: "#62636B", font: { size: 11 } } },
+        y: { grid: { color: "#E4E4DF" }, ticks: { color: "#62636B", font: { size: 11 } } }
+      }
+    }
+  });
+}
+
+function renderCharts(data) {
+  fullDolarData = data.dolar;
+  const range = sliceRange(fullDolarData, 30);
+  dolarChart = buildLineChart(
+    "chartDolar",
+    range.map(p => formatDate(p.reference_date)),
+    range.map(p => p.value),
+    "#5B5FEF"
+  );
+
+  selicChart = buildLineChart(
+    "chartSelic",
+    data.selic.map(p => formatDate(p.reference_date)),
+    data.selic.map(p => p.value),
+    "#17C3B2"
+  );
+
+  ipcaChart = buildBarChart(
+    "chartIpca",
+    data.ipca.map(p => formatDate(p.reference_date)),
+    data.ipca.map(p => p.value),
+    "#FF8552"
+  );
+}
+
+/* Filtro de período do gráfico de Dólar */
+document.querySelectorAll(".filter-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("is-active"));
+    btn.classList.add("is-active");
+    const range = btn.dataset.range === "all" ? "all" : parseInt(btn.dataset.range, 10);
+    const sliced = sliceRange(fullDolarData, range);
+    dolarChart.data.labels = sliced.map(p => formatDate(p.reference_date));
+    dolarChart.data.datasets[0].data = sliced.map(p => p.value);
+    dolarChart.update();
+  });
+});
+
+/* ============================================================
+   Inicialização
+   ============================================================ */
+(async function init() {
+  const data = await loadAllData();
+  renderKpis(data);
+  renderCharts(data);
+})();
+</script>
+</body>
+</html>
