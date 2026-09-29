@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Dashboard — Indicadores BCB</title>
+<title>Dashboard BCB</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📈</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -90,13 +90,13 @@
 <div class="wrap">
   <header>
     <p class="eyebrow">Dashboard</p>
-    <h1>Indicadores Financeiros — Banco Central</h1>
+    <h1>Indicadores Financeiros do Banco Central</h1>
     <p class="subtitle">Dólar, Selic e IPCA, alimentados pelo pipeline automatizado (GitHub Actions + Supabase).</p>
   </header>
 
   <div class="status-bar">
     <span class="status-dot demo" id="statusDot"></span>
-    <span id="statusText">Modo demonstração — dados de exemplo (ainda não conectado ao Supabase)</span>
+    <span id="statusText">Modo demonstração: dados de exemplo (ainda não conectado ao Supabase)</span>
   </div>
 
   <div class="kpi-grid" id="kpiGrid">
@@ -151,7 +151,7 @@
 
 <script>
 /* ============================================================
-   CONFIGURAÇÃO — troque pelos valores reais do seu Supabase
+   CONFIGURAÇÃO: troque pelos valores reais do seu Supabase
    (Project Settings → API → Project URL / anon public key)
    ============================================================ */
 const SUPABASE_URL = "https://naxbcdwelyhbcnwvaade.supabase.co";
@@ -206,7 +206,7 @@ async function loadAllData() {
 
   if (!isConfigured) {
     statusDot.classList.add("demo");
-    statusText.textContent = "Modo demonstração — dados de exemplo (ainda não conectado ao Supabase)";
+    statusText.textContent = "Modo demonstração: dados de exemplo (ainda não conectado ao Supabase)";
     return generateDemoData();
   }
 
@@ -217,11 +217,11 @@ async function loadAllData() {
       fetchSeries("ipca")
     ]);
     statusDot.classList.remove("demo");
-    statusText.textContent = "Conectado ao Supabase — dados reais do pipeline";
+    statusText.textContent = "Conectado ao Supabase: dados reais do pipeline";
     return { dolar, selic, ipca };
   } catch (err) {
     statusDot.classList.add("demo");
-    statusText.textContent = "Erro ao conectar ao Supabase — exibindo dados de exemplo";
+    statusText.textContent = "Erro ao conectar ao Supabase: exibindo dados de exemplo";
     console.error(err);
     return generateDemoData();
   }
