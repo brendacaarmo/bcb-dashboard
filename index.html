@@ -82,6 +82,14 @@
   .filter-btn.is-active { background: var(--accent); color: #fff; border-color: var(--accent); }
   .filter-btn:hover:not(.is-active) { border-color: var(--accent); color: var(--accent); }
 
+  .summary-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px 24px; margin-bottom: 20px; }
+  .summary-card[hidden] { display: none; }
+  .summary-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .summary-title { font-family: var(--font-display); font-size: 16px; font-weight: 600; }
+  .summary-badge { font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: #EEF0FF; color: var(--accent); }
+  .summary-badge.plain { background: var(--surface-2); color: var(--text-muted); }
+  .summary-text { font-size: 15.5px; line-height: 1.6; margin: 0 0 10px; }
+  .summary-meta { font-size: 12px; color: var(--text-muted); margin: 0; }
   footer { margin-top: 40px; font-size: 12.5px; color: var(--text-muted); text-align: center; }
   footer a { color: var(--accent); text-decoration: none; }
 </style>
@@ -96,8 +104,17 @@
 
   <div class="status-bar">
     <span class="status-dot demo" id="statusDot"></span>
-    <span id="statusText">Modo demonstração: dados de exemplo (ainda não conectado ao Supabase)</span>
+    <span id="statusText">Conectando ao Supabase...</span>
   </div>
+
+  <section class="summary-card" id="summaryCard" hidden>
+    <div class="summary-head">
+      <span class="summary-title">Resumo do dia</span>
+      <span class="summary-badge" id="summaryBadge"></span>
+    </div>
+    <p class="summary-text" id="summaryText"></p>
+    <p class="summary-meta" id="summaryMeta"></p>
+  </section>
 
   <div class="kpi-grid" id="kpiGrid">
     <div class="kpi-card">
@@ -224,6 +241,40 @@ async function loadAllData() {
     statusText.textContent = "Erro ao conectar ao Supabase: exibindo dados de exemplo";
     console.error(err);
     return generateDemoData();
+  }
+}
+
+/* ============================================================
+   Resumo diário (escrito por IA e verificado pelo pipeline)
+   ============================================================ */
+async function loadSummary() {
+  const card = document.getElementById("summaryCard");
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return; // modo demo: sem resumo
+  try {
+    const url = `${SUPABASE_URL}/rest/v1/resumos_diarios?select=summary_date,data_until,text,source,model&order=summary_date.desc&limit=1`;
+    const res = await fetch(url, {
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
+    });
+    if (!res.ok) throw new Error(`Erro ${res.status} ao buscar o resumo`);
+    const rows = await res.json();
+    if (!rows.length) return; // ainda não há resumo: o cartão fica escondido
+    const r = rows[0];
+
+    const badge = document.getElementById("summaryBadge");
+    const isAi = r.source === "llm";
+    badge.textContent = isAi ? "Escrito por IA · números verificados" : "Gerado por regras (sem IA)";
+    badge.classList.toggle("plain", !isAi);
+
+    document.getElementById("summaryText").textContent = r.text; // textContent: nunca interpreta HTML
+
+    const parts = [`Gerado em ${formatDate(r.summary_date)}`];
+    if (r.data_until) parts.push(`dados até ${formatDate(r.data_until)}`);
+    if (isAi && r.model) parts.push(`modelo ${r.model}`);
+    document.getElementById("summaryMeta").textContent = parts.join(" · ");
+
+    card.hidden = false;
+  } catch (err) {
+    console.error(err); // se falhar, o dashboard segue normal, só sem o cartão
   }
 }
 
@@ -370,6 +421,7 @@ document.querySelectorAll(".filter-btn").forEach(btn => {
   const data = await loadAllData();
   renderKpis(data);
   renderCharts(data);
+  loadSummary();
 })();
 </script>
 </body>
